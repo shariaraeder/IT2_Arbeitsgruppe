@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Campus Testkarte — Lageplan</title>
+
+  <!-- CSS einbinden -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div>
+        <h1>Campus Testkarte — Lageplan</h1>
+        <p class="description">Bewege die Maus über einen Punkt oder tippe auf Mobilgeräten, um das Testgeräusch abzuspielen.</p>
+      </div>
+
+      <div class="ui-panel">
+        <div class="controls">
+          <label for="volume">Lautstärke</label>
+          <input id="volume" type="range" min="0" max="1" step="0.01" value="0.9">
+          <button id="muteToggle" aria-pressed="false">Stumm</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="map-wrap">
+      <div class="map" id="map">
+        <!-- Achtung: Dateiname wie von dir angegeben -->
+        <img src="Lageplan.png" alt="Lageplan Campus" id="mapImage">
+
+        <!-- Hotspots: Mensa, AULA, Hörsaal, Labor -->
+        <!-- Passe left/top in % an, falls du exakter positionieren willst -->
+        <button class="hotspot" data-audio="TestgeauschSchneif.mp3" style="left:62%; top:58%;" aria-label="Mensa" tabindex="0">
+          <span class="dot"></span>
+          <div class="tooltip">Mensa</div>
+        </button>
+
+        <button class="hotspot" data-audio="TestgeauschPups.mp3" style="left:50%; top:48%;" aria-label="AULA" tabindex="0">
+          <span class="dot"></span>
+          <div class="tooltip">AULA</div>
+        </button>
+
+        <button class="hotspot" 
+        data-audio="TestgeaeuscheTippen.mp3" 
+        data-image="TestbildOrt.png"
+        style="left:43%; top:67%;" 
+        aria-label="Hörsaal" 
+        tabindex="0">
+  <span class="dot"></span>
+  <div class="tooltip">Hörsaal</div>
+</button>
+
+<!-- Modal für Bilder -->
+<div id="imageModal" class="modal" hidden>
+  <div class="modal-content">
+    <button class="modal-close" aria-label="Schließen">&times;</button>
+    <img id="modalImage" src="" alt="Ortsbild">
+  </div>
+</div>
+
+        <button class="hotspot" data-audio="TestgeauschRaeuspern.mp3" style="left:33%; top:55%;" aria-label="Labor" tabindex="0">
+          <span class="dot"></span>
+          <div class="tooltip">Labor</div>
+        </button>
+      </div>
+    </main>
+
+    <p class="note">Tipp: Wenn nichts zu hören ist, prüfe Dateinamen, Browser-Konsole und klicke einmal auf die Seite (Browser-Autoplay-Policy).</p>
+  </div>
+
+  <!-- JavaScript: in dieser HTML-Datei eingebettet -->
+  <script>
+    (function(){
+      const container = document.getElementById('map');
+      const hotspots = Array.from(container.querySelectorAll('.hotspot'));
+      const volumeControl = document.getElementById('volume');
+      const muteBtn = document.getElementById('muteToggle');
+      const FADE_MS = 200;
+
+      const audioMap = new Map();
+
+      function fadeIn(audio){
+        try{
+          audio.volume = 0;
+          const target = parseFloat(volumeControl.value) || 0.9;
+          const start = performance.now();
+          // play() kann eine Promise zurückgeben, catch unterdrückt Fehler vor erster Interaktion
+          audio.play().catch(()=>{});
+          function step(now){
+            const t = Math.min(1, (now - start) / FADE_MS);
+            audio.volume = t * target;
+            if(t < 1) requestAnimationFrame(step);
+          }
+          requestAnimationFrame(step);
+        }catch(e){}
+      }
+
+      function fadeOut(audio){
+        try{
+          const startVol = audio.volume;
+          const start = performance.now();
+          function step(now){
+            const t = Math.min(1, (now - start) / FADE_MS);
+            audio.volume = startVol * (1 - t);
+            if(t < 1) requestAnimationFrame(step);
+            else { try{ audio.pause(); audio.currentTime = 0; } catch(e){} }
+          }
+          requestAnimationFrame(step);
+        }catch(e){}
+      }
+
+      hotspots.forEach(hs=>{
+        const src = hs.dataset.audio;
+        if(!src) return;
+        const audio = new Audio(src);
+        audio.preload = 'auto';
+        audio.loop = false;
+        audio.volume = parseFloat(volumeControl.value || 0.9);
+        audioMap.set(hs, audio);
+
+        // Hover (nur non-touch)
+        hs.addEventListener('pointerenter', (ev)=>{
+          if(ev.pointerType === 'touch') return;
+          hs.dataset.playing = 'true';
+          fadeIn(audio);
+        });
+        hs.addEventListener('pointerleave', (ev)=>{
+          if(ev.pointerType === 'touch') return;
+          hs.dataset.playing = 'false';
+          fadeOut(audio);
+        });
+
+        // Click / Tap => toggle
+        hs.addEventListener('click', (e)=>{
+          e.preventDefault();
+          if(audio.paused){
+            hs.dataset.playing = 'true';
+            fadeIn(audio);
+          } else {
+            hs.dataset.playing = 'false';
+            fadeOut(audio);
+          }
+        });
+
+        // Keyboard accessibility
+        hs.addEventListener('keydown', (e)=>{
+          if(e.key === 'Enter' || e.key === ' '){
+            e.preventDefault();
+            hs.click();
+          }
+        });
+
+        audio.addEventListener('ended', ()=>{ hs.dataset.playing = 'false'; });
+      });
+
+      // global volume
+      volumeControl.addEventListener('input', ()=>{
+        const v = parseFloat(volumeControl.value);
+        audioMap.forEach(a=>{
+          a.volume = v;
+        });
+      });
+
+      // mute toggle
+      let muted = false;
+      muteBtn.addEventListener('click', ()=>{
+        muted = !muted;
+        muteBtn.setAttribute('aria-pressed', String(muted));
+        muteBtn.textContent = muted ? 'Unstumm' : 'Stumm';
+        audioMap.forEach(a=> a.muted = muted);
+      });
+
+      // click außerhalb stoppt alle
+      document.addEventListener('click', (e)=>{
+        if(!container.contains(e.target)){
+          audioMap.forEach((audio,hs)=>{
+            if(!audio.paused){ fadeOut(audio); hs.dataset.playing = 'false'; }
+          });
+        }
+      });
+
+      // Expose for debugging (optional)
+      window.__campusAudioMap = audioMap;
+    })();
+  
+	 // Modal-Logik
+  const modal = document.getElementById("imageModal");
+  const modalImg = document.getElementById("modalImage");
+  const modalClose = modal.querySelector(".modal-close");
+
+  // Klick auf Hotspot => Bild laden
+  document.querySelectorAll(".hotspot").forEach(hs => {
+    hs.addEventListener("click", (e) => {
+      const imgSrc = hs.dataset.image;
+      if(imgSrc){
+        modalImg.src = imgSrc;
+        modal.removeAttribute("hidden");
+      }
+    });
+  });
+
+  // Schließen
+  modalClose.addEventListener("click", ()=> modal.setAttribute("hidden",""));
+  modal.addEventListener("click", (e)=>{
+    if(e.target === modal) modal.setAttribute("hidden","");
+  });
+</script>
+	
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Rave Fish Prototyp</title>
+  <link rel="stylesheet" href="prototypfish2.css">
+
+  <!-- p5.js Bibliotheken -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/addons/p5.sound.min.js"></script>
+</head>
+<body>
+  <h1>🐠 Rave Fish – Blubber Edition</h1>
+  <p>Klicke auf „▶ Musik abspielen“ und schalte den Blubbermodus ein oder aus!</p>
+
+  <div class="controls">
+    <button id="playBtn">▶ Musik abspielen</button>
+    <button id="blubToggleBtn">💧 Blubbermodus: AN</button>
+
+    <div class="slider-group">
+      <label for="volumeSlider">Lautstärke</label>
+      <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.5">
+    </div>
+
+    <div class="slider-group">
+      <label for="bassSlider">Bass-Empfindlichkeit</label>
+      <input type="range" id="bassSlider" min="1" max="10" step="0.1" value="5">
+    </div>
+  </div>
+
+  <div id="sketch-container"></div>
+
+  <script src="prototypfish2.js"></script>
+</body>
+</html>
+
